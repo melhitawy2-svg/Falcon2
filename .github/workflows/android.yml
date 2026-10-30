@@ -14,22 +14,20 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout Falcon2 repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Verify ZIP source file
+      - name: Verify source ZIP
         run: |
-          ZIP_PATH="FalconVPN-v0.27.0-source-reupload.zip"
+          ZIP_PATH="$GITHUB_WORKSPACE/FalconVPN-Starter.zip"
 
           if [ ! -f "$ZIP_PATH" ]; then
-            echo "ERROR: Source ZIP file not found!"
-            echo "Expected path: $GITHUB_WORKSPACE/$ZIP_PATH"
-            echo "Repository files:"
-            ls -la
+            echo "ERROR: FalconVPN-Starter.zip not found!"
+            ls -lah "$GITHUB_WORKSPACE"
             exit 1
           fi
 
-          echo "ZIP file found successfully:"
+          echo "Source ZIP found:"
           ls -lh "$ZIP_PATH"
 
       - name: Set up Java 17
@@ -48,53 +46,48 @@ jobs:
         with:
           gradle-version: '8.13'
 
-      - name: Extract Falcon VPN source
+      - name: Extract source ZIP
         run: |
           mkdir -p project
-          unzip -q "$GITHUB_WORKSPACE/FalconVPN-v0.27.0-source-reupload.zip" -d project
+          unzip -q "$GITHUB_WORKSPACE/FalconVPN-Starter.zip" -d project
 
-          echo "Extracted source files:"
-          ls -la project
-
-      - name: Locate project directory
+      - name: Verify project structure
         run: |
-          PROJECT_DIR=$(find project -type f -name "settings.gradle.kts" -printf '%h\n' | head -n 1)
+          PROJECT_DIR="$GITHUB_WORKSPACE/project"
 
-          if [ -z "$PROJECT_DIR" ]; then
-            echo "ERROR: settings.gradle.kts not found!"
-            find project -maxdepth 5 -type f
+          echo "Checking project files..."
+
+          if [ ! -f "$PROJECT_DIR/settings.gradle.kts" ] && [ ! -f "$PROJECT_DIR/settings.gradle" ]; then
+            echo "ERROR: Gradle settings file not found in project root!"
+            find "$PROJECT_DIR" -maxdepth 3 -type f
+            exit 1
+          fi
+
+          if [ ! -f "$PROJECT_DIR/app/build.gradle.kts" ] && [ ! -f "$PROJECT_DIR/app/build.gradle" ]; then
+            echo "ERROR: Android app module not found!"
+            find "$PROJECT_DIR" -maxdepth 3 -type f
             exit 1
           fi
 
           echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-          echo "Android project found at: $PROJECT_DIR"
-
-      - name: Verify Android app module
-        run: |
-          if [ ! -f "$PROJECT_DIR/app/build.gradle.kts" ] && [ ! -f "$PROJECT_DIR/app/build.gradle" ]; then
-            echo "ERROR: Android app module not found!"
-            ls -la "$PROJECT_DIR"
-            exit 1
-          fi
-
-          echo "Android app module verified."
+          echo "Project structure verified successfully."
 
       - name: Build Falcon VPN APK
         run: |
           cd "$PROJECT_DIR"
           gradle assembleDebug --no-daemon --stacktrace
 
-      - name: Find generated APK
+      - name: Locate APK
         run: |
           APK_PATH=$(find "$PROJECT_DIR/app/build/outputs/apk" -type f -name "*.apk" | head -n 1)
 
           if [ -z "$APK_PATH" ]; then
-            echo "ERROR: APK was not generated!"
+            echo "ERROR: APK file was not generated!"
             exit 1
           fi
 
           echo "APK_PATH=$APK_PATH" >> "$GITHUB_ENV"
-          echo "Generated APK: $APK_PATH"
+          echo "APK found: $APK_PATH"
 
       - name: Upload Falcon VPN APK
         uses: actions/upload-artifact@v4
