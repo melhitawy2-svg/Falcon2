@@ -36,21 +36,13 @@ steps:
 
   - name: Extract Falcon VPN source
     run: |
-      ZIP_FILE=$(find . -type f -iname "*.zip" | head -n 1)
-
-      if [ -z "$ZIP_FILE" ]; then
-        echo "ERROR: No ZIP source file found"
-        exit 1
-      fi
-
-      echo "Found source: $ZIP_FILE"
       mkdir -p project
-      unzip -q "$ZIP_FILE" -d project
+      unzip -q FalconVPN-v0.27.0-source-reupload.zip -d project
 
       PROJECT_DIR=$(find project -type f -name "settings.gradle.kts" -printf '%h\n' | head -n 1)
 
       if [ -z "$PROJECT_DIR" ]; then
-        echo "ERROR: Android project not found"
+        echo "ERROR: Android project not found inside ZIP"
         find project -maxdepth 4 -type f
         exit 1
       fi
